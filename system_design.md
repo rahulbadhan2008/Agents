@@ -21,4 +21,15 @@
 
 ### 5. Training Pipeline
 - Automated data extraction from long-term memory.
-- Fine-tuning dataset preparation for Bedrock.
+- Fine-tuning dataset preparation for Bedrock models.
+
+### 6. MLOps & CI/CD
+- **Linting & Security**: Automated code quality (flake8) and security (bandit) checks.
+- **Observability**: Real-time tracing of agent planners and sub-agent executions in LangSmith.
+- **Continuous Deployment**: Infrastructure templates for AWS ECS with CloudWatch monitoring integrations.
+
+## Data Lifecycle
+1. **Ingestion**: Documents are cleaned and chunked using `ChunkingUtility`.
+2. **Retrieval**: Multi-model retrieval via OpenSearch and Neo4j.
+3. **Synthesis**: LLM-based answer generation with audit trails.
+4. **Maintenance**: Auto-cleanup of expired sessions and temporary agents.

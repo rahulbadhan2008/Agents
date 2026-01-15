@@ -1,12 +1,17 @@
 # LLM Ops RAG Pipeline
 
-A comprehensive End-to-End RAG (Retrieval-Augmented Generation) pipeline built with AWS Bedrock, FastAPI, and LangChain.
+![CI/CD](https://github.com/rahulbadhan2008/Agents/actions/workflows/main.yml/badge.svg)
+![Monitoring](https://img.shields.io/badge/Monitoring-LangSmith-orange)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-## Features
-- **Multi-Agent Orchestration**: Super-Agent managing specialized sub-agents via LangGraph.
-- **Hybrid Search**: Combines OpenSearch (BM25 + KNN) and Neo4j (Graph).
-- **Tiered Memory**: Managed session memory (Temp, Short-Term, Long-Term).
-- **MLOps Ready**: CloudWatch logging, cost management, and CI/CD templates.
+A professional-grade End-to-End RAG pipeline featuring multi-agent orchestration via LangGraph and deep observability through LangSmith.
+
+## 🚀 Features
+- **Advanced Orchestration**: Super-Agent (LangGraph) manages a dynamic graph of sub-agents (Retrieval, Reranking, Synthesis).
+- **Deep Observability**: Out-of-the-box LangSmith integration for tracing every decision and tool call.
+- **Enterprise Search**: Hybrid search combining OpenSearch (Keyword/Vector) and Neo4j (Graph).
+- **Scalable Infrastructure**: MVC architecture with FastAPI, ready for EC2/ECS deployment.
+- **Robust MLOps**: CI/CD pipeline with linting, security scans, and automated testing.
 
 ## Setup
 1. **Clone the repository**:
@@ -30,6 +35,7 @@ A comprehensive End-to-End RAG (Retrieval-Augmented Generation) pipeline built w
    ```
 
 ## Documentation
+- [API Documentation](api_documentation.md)
 - [System Design](system_design.md)
 - [Architecture Details](architecture.md)
 - [Implementation Plan](.gemini/antigravity/brain/8e5993f9-7907-4f05-befb-fe0e15b9e1c9/implementation_plan.md)

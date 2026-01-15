@@ -63,7 +63,11 @@ from .sub_agents import RetrievalAgent, SynthesisAgent
         from ...models.models import ExecutionLog
         import datetime
         import uuid
+        from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
 
+        # Unique Trace ID for LangSmith
+        trace_id = f"trace-{uuid.uuid4()}"
+        
         # 1. Check Cache
         cache_key = cache_service.generate_cache_key(query, agent_id)
         cached_response = cache_service.get(cache_key)
@@ -72,7 +76,7 @@ from .sub_agents import RetrievalAgent, SynthesisAgent
 
         execution_id = str(uuid.uuid4())
         
-        # 2. Plan and Execute via LangGraph
+        # 2. Plan and Execute via LangGraph with Tracing
         initial_state = {
             "messages": [HumanMessage(content=query)],
             "context": {},
@@ -81,26 +85,33 @@ from .sub_agents import RetrievalAgent, SynthesisAgent
             "agent_id": agent_id
         }
         
-        cloudwatch_logger.log(f"Agent {agent_id} starting execution {execution_id}", level="INFO")
-        result = await self.workflow.ainvoke(initial_state)
+        cloudwatch_logger.log(f"Agent {agent_id} starting execution {execution_id} | Trace: {trace_id}", level="INFO")
+        
+        try:
+            # LangGraph execution with recursive capability
+            config = {"configurable": {"thread_id": session_id}, "run_name": f"SuperAgent-{agent_id}", "metadata": {"trace_id": trace_id}}
+            result = await self.workflow.ainvoke(initial_state, config=config)
 
-        # 3. Store in Cache (1 hour)
-        cache_service.set(cache_key, result, expire=3600)
-        
-        # 4. Detailed Audit Trail
-        log_entry = ExecutionLog(
-            id=execution_id,
-            agent_id=agent_id,
-            query=query,
-            response=result["messages"][-1].content,
-            plan={"steps": ["plan", "retrieve", "synthesize"]},
-            metrics={"latency": 0.0, "tokens": 0},
-            trace_id=execution_id,
-            created_at=datetime.datetime.utcnow()
-        )
-        self.db.add(log_entry)
-        self.db.commit()
-        
-        cloudwatch_logger.log(f"Agent {agent_id} completed execution {execution_id}", level="INFO")
-        
-        return result
+            # 3. Store in Cache (1 hour)
+            cache_service.set(cache_key, result, expire=3600)
+            
+            # 4. Detailed Audit Trail
+            log_entry = ExecutionLog(
+                id=execution_id,
+                agent_id=agent_id,
+                query=query,
+                response=result["messages"][-1].content,
+                plan={"steps": ["plan", "retrieve", "synthesize"]},
+                metrics={"latency": 0.0, "tokens": 0},
+                trace_id=trace_id,
+                created_at=datetime.datetime.utcnow()
+            )
+            self.db.add(log_entry)
+            self.db.commit()
+            
+            cloudwatch_logger.log(f"Agent {agent_id} completed execution {execution_id}", level="INFO")
+            return result
+            
+        except Exception as e:
+            cloudwatch_logger.log(f"Execution failed: {str(e)}", level="ERROR")
+            raise e
