@@ -30,6 +30,14 @@ A professional-grade End-to-End RAG pipeline featuring multi-agent orchestration
    - Update your AWS and Database credentials.
 
 4. **Run the Application**:
+   The easiest way to start the server is using the provided startup script:
+   ```bash
+   chmod +x run.sh
+   ./run.sh
+   ```
+   This script will validate your environment, activate your virtual environment, and start the FastAPI server on `http://localhost:8000`.
+
+   Alternatively, you can run it manually:
    ```bash
    uvicorn app.main:app --reload
    ```
