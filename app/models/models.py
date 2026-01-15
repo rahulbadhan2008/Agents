@@ -15,6 +15,29 @@ class MemoryTier(enum.Enum):
     SHORT_TERM = "short_term"
     LONG_TERM = "long_term"
 
+from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey, Enum, Text, Table
+from sqlalchemy.orm import relationship
+
+# Association table for Agents and Tools
+agent_tools = Table(
+    "agent_tools",
+    Base.metadata,
+    Column("agent_id", String, ForeignKey("agents.id"), primary_key=True),
+    Column("tool_id", String, ForeignKey("tools.id"), primary_key=True)
+)
+
+class Tool(Base):
+    __tablename__ = "tools"
+
+    id = Column(String, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True)
+    description = Column(Text)
+    schema = Column(JSON) # JSON Schema for tool arguments
+    code = Column(Text) # Python code or logic for the tool
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    agents = relationship("Agent", secondary=agent_tools, back_populates="tools")
+
 class Agent(Base):
     __tablename__ = "agents"
 
@@ -24,7 +47,9 @@ class Agent(Base):
     system_prompt = Column(Text)
     config = Column(JSON)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    expires_at = Column(DateTime, nullable=True) # For temporary agents
+    expires_at = Column(DateTime, nullable=True)
+
+    tools = relationship("Tool", secondary=agent_tools, back_populates="agents")
 
 class ExecutionLog(Base):
     __tablename__ = "execution_logs"

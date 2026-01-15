@@ -14,7 +14,7 @@ class RAGRequest(BaseModel):
 
 @router.post("/query")
 async def execute_rag_query(request: RAGRequest, db: Session = Depends(get_db)):
-    super_agent = SuperAgent(db)
+    super_agent = SuperAgent(db, request.agent_id)
     try:
         result = await super_agent.execute(
             session_id=request.session_id,

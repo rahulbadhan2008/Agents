@@ -14,46 +14,86 @@ class AgentState(TypedDict):
     session_id: str
     agent_id: str
 
+from .mcp_server import MCPServer
+from langchain_core.utils.function_calling import convert_to_openai_tool
+
 class SuperAgent:
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, agent_id: str):
         self.db = db
+        self.agent_id = agent_id
         self.llm = bedrock_service.get_llm()
+        self.mcp = MCPServer(db)
+        
+        # Load tools dynamic from DB for this agent
+        self.tools_metadata = self.mcp.load_tools(agent_id)
+        
+        # Bind tools to LLM if available
+        if self.tools_metadata:
+            self.llm_with_tools = self.llm.bind_tools([convert_to_openai_tool(t) for t in self.tools_metadata])
+        else:
+            self.llm_with_tools = self.llm
+            
         self.workflow = self._create_workflow()
 
     def _create_workflow(self):
         workflow = StateGraph(AgentState)
 
-        workflow.add_node("plan", self.plan_node)
-        workflow.add_node("retrieve", self.retrieve_node)
+        workflow.add_node("plan_and_tool", self.plan_and_tool_node)
+        workflow.add_node("execute_tools", self.execute_tools_node)
         workflow.add_node("synthesize", self.synthesize_node)
 
-        workflow.set_entry_point("plan")
-        workflow.add_edge("plan", "retrieve")
-        workflow.add_edge("retrieve", "synthesize")
+        workflow.set_entry_point("plan_and_tool")
+        
+        workflow.add_conditional_edges(
+            "plan_and_tool",
+            self.should_continue,
+            {
+                "continue": "execute_tools",
+                "end": "synthesize"
+            }
+        )
+        
+        workflow.add_edge("execute_tools", "plan_and_tool")
         workflow.add_edge("synthesize", END)
 
         return workflow.compile()
 
-    def plan_node(self, state: AgentState):
-        # Implementation of planning logic
-        return {"next_step": "retrieve"}
+    def plan_and_tool_node(self, state: AgentState):
+        messages = state["messages"]
+        response = self.llm_with_tools.invoke(messages)
+        return {"messages": [response]}
 
-    def retrieve_node(self, state: AgentState):
-        query = state["messages"][-1].content
-        # Hybrid search
-        results = search_service.hybrid_search(query)
-        return {"context": results}
+    def should_continue(self, state: AgentState):
+        messages = state["messages"]
+        last_message = messages[-1]
+        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+            return "continue"
+        return "end"
 
-import json
+    async def execute_tools_node(self, state: AgentState):
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        tool_outputs = []
+        for tool_call in last_message.tool_calls:
+            tool_name = tool_call["name"]
+            arguments = tool_call["args"]
+            
+            # Execute tool via MCP
+            output = await self.mcp.call_tool(tool_name, **arguments)
+            
+            from langchain_core.messages import ToolMessage
+            tool_outputs.append(ToolMessage(
+                content=str(output),
+                tool_call_id=tool_call["id"]
+            ))
+            
+        return {"messages": tool_outputs}
 
     def synthesize_node(self, state: AgentState):
-        context = state.get("context", {})
-        query = state["messages"][-1].content
-        
-        # Simple synthesis for now
-        prompt = f"Context: {json.dumps(context, indent=2)}\n\nQuery: {query}"
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        
+        messages = state["messages"]
+        # LLM summarizes the conversation so far
+        response = self.llm.invoke(messages)
         return {"messages": [response]}
 
 from ..utils.caching import cache_service

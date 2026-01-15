@@ -5,14 +5,12 @@ graph TD
     
     subgraph "Orchestration & Tracing"
         SuperAgent --> LS["LangSmith (Deep Tracing)"]
-        SuperAgent --> Plan["Planning Node"]
-        Plan --> RetrievalAgent["Retrieval Sub-Agent"]
-        RetrievalAgent --> LocalSearch["Hybrid Search Service"]
-        LocalSearch --> OS["OpenSearch (BM25 + Vector)"]
-        LocalSearch --> Neo4j["Neo4j (Graph)"]
-        
-        RetrievalAgent --> Rerank["Reranking Sub-Agent"]
-        Rerank --> Synthesize["Synthesis Node"]
+        SuperAgent --> MCP["MCP Server (Dynamic Tools)"]
+        SuperAgent --> Plan["Planning Node (LLM + Tools)"]
+        Plan --> Execution["Execute Tools Node"]
+        Execution --> MCP
+        MCP --> DB_Tools["Fetch Tools from DB"]
+        Execution --> Synthesize["Synthesis Node"]
     end
     
     Synthesize --> Bedrock["AWS Bedrock LLM"]

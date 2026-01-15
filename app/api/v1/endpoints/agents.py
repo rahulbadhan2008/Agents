@@ -27,10 +27,36 @@ def create_agent(request: CreateAgentRequest, db: Session = Depends(get_db)):
     )
     return {"agent_id": agent_id}
 
-@router.put("/{agent_id}/prompt")
-def update_agent_prompt(agent_id: str, request: UpdatePromptRequest, db: Session = Depends(get_db)):
-    manager = get_prompt_manager(db)
-    success = manager.update_agent_prompt(agent_id, request.prompt)
-    if not success:
-        raise HTTPException(status_code=404, detail="Agent not found")
-    return {"message": "Prompt updated successfully"}
+class CreateToolRequest(BaseModel):
+    name: str
+    description: str
+    schema: dict
+    code: str
+
+@router.post("/tools")
+def create_tool(request: CreateToolRequest, db: Session = Depends(get_db)):
+    from ....models.models import Tool
+    import uuid
+    tool_id = str(uuid.uuid4())
+    new_tool = Tool(
+        id=tool_id,
+        name=request.name,
+        description=request.description,
+        schema=request.schema,
+        code=request.code
+    )
+    db.add(new_tool)
+    db.commit()
+    return {"tool_id": tool_id}
+
+@router.post("/{agent_id}/tools/{tool_id}")
+def assign_tool_to_agent(agent_id: str, tool_id: str, db: Session = Depends(get_db)):
+    from ....models.models import Agent, Tool
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    tool = db.query(Tool).filter(Tool.id == tool_id).first()
+    if not agent or not tool:
+        raise HTTPException(status_code=404, detail="Agent or Tool not found")
+    
+    agent.tools.append(tool)
+    db.commit()
+    return {"message": "Tool assigned successfully"}
