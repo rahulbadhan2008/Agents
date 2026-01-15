@@ -103,12 +103,9 @@ from .sub_agents import RetrievalAgent, SynthesisAgent
         from ...models.models import ExecutionLog
         import datetime
         import uuid
-        from langchain_core.callbacks import CallbackManager, StreamingStdOutCallbackHandler
+        from langchain_core.messages import HumanMessage
 
-        # Unique Trace ID for LangSmith
         trace_id = f"trace-{uuid.uuid4()}"
-        
-        # 1. Check Cache
         cache_key = cache_service.generate_cache_key(query, agent_id)
         cached_response = cache_service.get(cache_key)
         if cached_response:
@@ -116,42 +113,56 @@ from .sub_agents import RetrievalAgent, SynthesisAgent
 
         execution_id = str(uuid.uuid4())
         
-        # 2. Plan and Execute via LangGraph with Tracing
+        # Determine if action is critical for HITL
+        is_critical = self._check_if_critical(query)
+
         initial_state = {
             "messages": [HumanMessage(content=query)],
             "context": {},
             "next_step": "plan",
             "session_id": session_id,
-            "agent_id": agent_id
+            "agent_id": agent_id,
+            "requires_approval": is_critical
         }
         
-        cloudwatch_logger.log(f"Agent {agent_id} starting execution {execution_id} | Trace: {trace_id}", level="INFO")
+        cloudwatch_logger.log(f"Agent {agent_id} starting Planning flow | Trace: {trace_id}", level="INFO")
         
         try:
-            # LangGraph execution with recursive capability
-            config = {"configurable": {"thread_id": session_id}, "run_name": f"SuperAgent-{agent_id}", "metadata": {"trace_id": trace_id}}
+            config = {"configurable": {"thread_id": session_id}, "run_name": f"PlanningAgent-{agent_id}", "metadata": {"trace_id": trace_id}}
+            
+            # Workflow with potential HITL interruption
             result = await self.workflow.ainvoke(initial_state, config=config)
 
-            # 3. Store in Cache (1 hour)
+            # Continuous Learning: Store in Long-Term Memory for fine-tuning pipeline
+            from ..memory_service import MemoryService, MemoryTier
+            from ..db.session import SessionLocal
+            with SessionLocal() as db:
+                memory_service = MemoryService(db)
+                memory_service.add_memory(
+                    session_id=session_id,
+                    tier=MemoryTier.LONG_TERM,
+                    content={"query": query, "response": result["messages"][-1].content, "agent_id": agent_id}
+                )
+
             cache_service.set(cache_key, result, expire=3600)
-            
-            # 4. Detailed Audit Trail
-            log_entry = ExecutionLog(
-                id=execution_id,
-                agent_id=agent_id,
-                query=query,
-                response=result["messages"][-1].content,
-                plan={"steps": ["plan", "retrieve", "synthesize"]},
-                metrics={"latency": 0.0, "tokens": 0},
-                trace_id=trace_id,
-                created_at=datetime.datetime.utcnow()
-            )
-            self.db.add(log_entry)
-            self.db.commit()
-            
-            cloudwatch_logger.log(f"Agent {agent_id} completed execution {execution_id}", level="INFO")
             return result
             
         except Exception as e:
-            cloudwatch_logger.log(f"Execution failed: {str(e)}", level="ERROR")
+            cloudwatch_logger.log(f"Planning Agent failed: {str(e)}", level="ERROR")
             raise e
+
+    def _check_if_critical(self, query: str) -> bool:
+        # Simple logic: Tool calls or financial/system changes are critical
+        critical_keywords = ["delete", "update", "transfer", "execute code"]
+        return any(kw in query.lower() for kw in critical_keywords)
+
+    def planning_node(self, state: AgentState):
+        """Dedicated Planning node that assigns tasks to sub-agents."""
+        messages = state["messages"]
+        last_message = messages[-1].content
+        
+        # LLM creates a plan: "1. Search for X, 2. Rerank Y"
+        plan_prompt = f"Based on the user query, create a detailed task plan for sub-agents: {last_message}"
+        plan = self.llm.invoke([HumanMessage(content=plan_prompt)])
+        
+        return {"messages": [plan], "next_step": "execute_tools"}

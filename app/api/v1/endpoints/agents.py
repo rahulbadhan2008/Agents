@@ -16,15 +16,20 @@ class CreateAgentRequest(BaseModel):
 class UpdatePromptRequest(BaseModel):
     prompt: str
 
+from ....services.dynamodb_service import dynamodb_service
+
 @router.post("/")
 def create_agent(request: CreateAgentRequest, db: Session = Depends(get_db)):
-    manager = get_prompt_manager(db)
-    agent_id = manager.create_agent(
-        name=request.name,
-        agent_type=request.type,
-        system_prompt=request.system_prompt,
-        config=request.config
-    )
+    import uuid
+    agent_id = str(uuid.uuid4())
+    agent_data = {
+        "agent_id": agent_id,
+        "name": request.name,
+        "type": request.type.value,
+        "system_prompt": request.system_prompt,
+        "config": request.config or {}
+    }
+    dynamodb_service.save_agent(agent_data)
     return {"agent_id": agent_id}
 
 class CreateToolRequest(BaseModel):

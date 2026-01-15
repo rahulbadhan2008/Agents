@@ -2,13 +2,15 @@
 
 ## Components
 
-### 1. API Layer (FastAPI)
-- Multi-controller setup (MVC).
-- Endpoints for RAG queries and agent management.
+### 1. Planning Layer (LangGraph)
+- **Planning Agent**: Analyzes user intent and generates a multi-step task list.
+- **Sub-Agents**: Independent workers for Retrieval, Reranking, and Synthesis.
+- **HITL Interceptor**: Pauses execution for critical regions, awaiting human approval.
 
-### 2. Orchestration Layer (LangGraph)
-- **Super-Agent**: High-level planner.
-- **Sub-Agents**: Specialized roles for retrieval, reranking, and synthesis.
+### 2. Storage Layer (Hybrid)
+- **DynamoDB**: Primary store for Agent metadata and tool definitions.
+- **PostgreSQL**: Stores execution logs, audit trails, and memory layers.
+- **Redis**: Low-latency cache for query results.
 
 ### 3. Search Engine (Hybrid)
 - **OpenSearch**: Keyword (BM25) and Semantic (KNN) search.

@@ -34,9 +34,19 @@ class MemoryService:
         
         return query.all()
 
-    def cleanup_expired(self):
-        self.db.query(Memory).filter(Memory.expires_at < datetime.utcnow()).delete()
+    def promote_memory(self, session_id: str, source_tier: MemoryTier, target_tier: MemoryTier):
+        """Move important context from temporary/short-term to long-term for learning."""
+        memories = self.get_memories(session_id, source_tier)
+        for mem in memories:
+            new_memory = Memory(
+                session_id=session_id,
+                tier=target_tier,
+                content=mem.content,
+                expires_at=None if target_tier == MemoryTier.LONG_TERM else datetime.utcnow() + timedelta(days=7)
+            )
+            self.db.add(new_memory)
         self.db.commit()
 
-def get_memory_service(db: Session):
-    return MemoryService(db)
+    def get_all_long_term_for_fine_tuning(self):
+        """Fetch all historical data for the fine-tuning pipeline."""
+        return self.db.query(Memory).filter(Memory.tier == MemoryTier.LONG_TERM).all()

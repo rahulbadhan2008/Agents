@@ -7,11 +7,11 @@
 A professional-grade End-to-End RAG pipeline featuring multi-agent orchestration via LangGraph and deep observability through LangSmith.
 
 ## 🚀 Features
-- **Advanced Orchestration**: Super-Agent (LangGraph) manages a dynamic graph of sub-agents (Retrieval, Reranking, Synthesis).
-- **Deep Observability**: Out-of-the-box LangSmith integration for tracing every decision and tool call.
-- **Enterprise Search**: Hybrid search combining OpenSearch (Keyword/Vector) and Neo4j (Graph).
-- **Scalable Infrastructure**: MVC architecture with FastAPI, ready for EC2/ECS deployment.
-- **Robust MLOps**: CI/CD pipeline with linting, security scans, and automated testing.
+- **Planning & Orchestration**: A specialized **Planning Agent** uses LangGraph to decompose user queries and assign tasks to specialized sub-agents.
+- **Human-in-the-Loop (HITL)**: Intelligent detection of critical actions requiring manual human approval via specialized API endpoints.
+- **DynamoDB Integration**: User-defined agents are stored in AWS DynamoDB for high scalability.
+- **Continuous Learning Loop**: A tiered memory system (Temp, Short, Long) that automatically aggregates history into the Bedrock fine-tuning pipeline.
+- **Enterprise Search**: Hybrid engine combining OpenSearch (BM25/Vector) and Neo4j (Graph).
 
 ## Setup
 1. **Clone the repository**:
