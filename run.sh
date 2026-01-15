@@ -26,7 +26,22 @@ fi
 # 3. Load environment variables
 export $(grep -v '^#' .env | xargs)
 
-# 4. Check for virtual environment
+# 5. Check for Docker mode
+if [[ "$1" == "--docker" ]]; then
+    echo -e "${GREEN}🐳 Starting with Docker Compose...${NC}"
+    if ! command -v docker-compose &> /dev/null; then
+        if ! docker compose version &> /dev/null; then
+            echo -e "${RED}❌ Error: docker-compose or 'docker compose' not found.${NC}"
+            exit 1
+        fi
+        docker compose up --build
+    else
+        docker-compose up --build
+    fi
+    exit 0
+fi
+
+# 6. Check for virtual environment
 if [ -d "venv" ]; then
     echo -e "${GREEN}📦 Activating virtual environment...${NC}"
     source venv/bin/activate
@@ -35,12 +50,9 @@ elif [ -d ".venv" ]; then
     source .venv/bin/activate
 fi
 
-# 5. Run Database Initialization (Optional/If needed)
-# echo -e "${YELLOW}🔄 Initializing database...${NC}"
-# python -m app.db.init_db
-
-# 6. Start FastAPI with Uvicorn
+# 7. Start FastAPI with Uvicorn
 echo -e "${GREEN}🔥 Server starting at http://localhost:8000${NC}"
 echo -e "${YELLOW}📝 Documentation available at http://localhost:8000/docs${NC}"
+echo -e "${YELLOW}💡 Tip: Use './run.sh --docker' to run with containers.${NC}"
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

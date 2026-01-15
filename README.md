@@ -33,13 +33,14 @@ A professional-grade End-to-End RAG pipeline featuring multi-agent orchestration
    The easiest way to start the server is using the provided startup script:
    ```bash
    chmod +x run.sh
-   ./run.sh
+   ./run.sh          # Local execution
+   ./run.sh --docker # Docker-based execution
    ```
-   This script will validate your environment, activate your virtual environment, and start the FastAPI server on `http://localhost:8000`.
+   This script will validate your environment, activate your virtual environment (if local), and start the FastAPI server on `http://localhost:8000`.
 
-   Alternatively, you can run it manually:
+   **Using Docker Compose directly**:
    ```bash
-   uvicorn app.main:app --reload
+   docker-compose up --build
    ```
 
 ## Documentation
